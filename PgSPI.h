@@ -9,22 +9,28 @@
 
 */
 
+
+
+
+/* pull in postgersql headers first */
+#include "postgres.h"
+#include "funcapi.h"
+#include "executor/spi.h"
+
+/* pull in perl headers */
 #define NEED_DBIXS_VERSION 0
 
-/* PgSPI shouldn't, hopefully, need either of these */
-/* #include "postgres.h" */
-#include "executor/spi.h"
-#undef DEBUG
-/* #include "commands/trigger.h"
-#include "fmgr.h" */
+#include "EXTERN.h"
+#include "perl.h"
+#include "XSUB.h"
+#include "ppport.h"
 
 #include <DBIXS.h>		/* installed by the DBI module	*/
 
+#define dirty PL_dirty
+
 #include "dbdimp.h"		/* read in our implementation details */
 
-
-
 #include <dbd_xsh.h>		/* installed by the DBI module	*/
-
 
 /* end of PgSPI.h */

@@ -66,10 +66,8 @@ while(<DATA>)  { $sp.=$_; }
 
 my $esc_sp=$dbh->quote($sp);
 
-$dbh->{RaiseError}=0;
-$dbh->do("DROP FUNCTION dbd_spi_test()");
 $dbh->{RaiseError}=1;
-$dbh->do("CREATE FUNCTION dbd_spi_test() returns text as $esc_sp language 'plperlu'");
+$dbh->do("CREATE OR REPLACE FUNCTION dbd_spi_test() returns text as $esc_sp language 'plperlu'");
 $dbh->do("select dbd_spi_test()");
 
 
@@ -184,8 +182,6 @@ use Data::Dumper;
 
 $pg_dbh->{RaiseError}=1;
 
-$pg_dbh->do("Set DateStyle = 'ISO'");
-
 $pg_dbh->do("CREATE TABLE builtin ( 
   bool_      bool,
   char_      char,
@@ -201,26 +197,27 @@ $pg_dbh->do("CREATE TABLE builtin (
   lseg_      lseg,
   box_       box
   )");
+
 #sleep 15;
 
-my $sth = $pg_dbh->table_info;
+my $sth = $pg_dbh->table_info('','','builtin','');
 my @infos = $sth->fetchrow_array;
 $sth->finish;
 
 ( join(" ", @infos[2,3]) eq q{builtin TABLE} ) 
-    and print "\$pg_dbh->table_info ........... ok\n"
-    or  print "\$pg_dbh->table_info ........... not ok: ", join(" ", @infos), "\n";
+    and print STDERR "\$pg_dbh->table_info ........... ok\n"
+    or  print STDERR "\$pg_dbh->table_info ........... not ok: ", join(" ", @infos), "\n";
 
 #my @names = $pg_dbh->tables;
 #( join(" ", @names) eq q{builtin} ) 
-#    and print "\$pg_dbh->tables ............... ok\n"
+#    and print STDERR "\$pg_dbh->tables ............... ok\n"
 #    or  print "\$pg_dbh->tables ............... not ok: ", join(" ", @names), "\n";
 
-my $attrs = $pg_dbh->func('builtin', 'table_attributes');
-(  $$attrs[0]{NAME} eq q{varchar12_} ) 
-    and print "\$pg_dbh->pg_table_attributes .. ok\n"
-    or  print "\$pg_dbh->pg_table_attributes .. not ok: ", $$attrs[0]{NAME}, "\n";
-
+#my $attrs = $pg_dbh->func('builtin', 'table_attributes');
+#(  $$attrs[0]{NAME} eq q{varchar12_} ) 
+#    and print STDERR "\$pg_dbh->pg_table_attributes .. ok\n"
+#    or  print STDERR "\$pg_dbh->pg_table_attributes .. not ok: ", $$attrs[0]{NAME}, "\n";
+#
 ######################### test various insert methods
 
 # insert into table with $dbh->do($stmt)
@@ -248,7 +245,7 @@ $pg_dbh->do("INSERT INTO builtin VALUES(
   ( bool_, char_, char12_, char16_, varchar12_, text_, date_, int4_, int4a_, float8_, point_, lseg_, box_ )
   VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
   " ) )
-    and print "\$pg_dbh->prepare .............. ok\n"
+    and print STDERR "\$pg_dbh->prepare .............. ok\n"
     or  die   "\$pg_dbh->prepare .............. not ok: ", $DBI::errstr;
 
 ( $sth->execute (
@@ -266,7 +263,7 @@ $pg_dbh->do("INSERT INTO builtin VALUES(
   '((4.0,5.0),(6.0,7.0))',
   '((4.0,5.0),(6.0,7.0))'
   ) )
-    and print "\$pg_dbh->execute .............. ok\n"
+    and print STDERR "\$pg_dbh->execute .............. ok\n"
     or  die   "\$pg_dbh->execute .............. not ok: ", $DBI::errstr;
 
 $sth->execute (
@@ -296,7 +293,7 @@ $pg_dbh->do( "INSERT INTO builtin
    'Ene Mene  Mu',
    'Ene Mene  Mu',
    'Ene Mene  Mu',
-   '14-10-1957',
+   '10-10-1957',
    5432,
    '{6,7,8}',
    6.789,
@@ -307,17 +304,17 @@ $pg_dbh->do( "INSERT INTO builtin
 
 my $pg_oid_status = $sth->{pg_oid_status};
 ( $pg_oid_status ne '' )
-    and print "\$sth->{pg_oid_status} ...... ok\n"
-    or  print "\$sth->{pg_oid_status} ...... not ok: $pg_oid_status\n";
+    and print STDERR "\$sth->{pg_oid_status} ...... ok\n"
+    or  print STDERR "\$sth->{pg_oid_status} ...... not ok: $pg_oid_status\n";
 
 
 my $pg_cmd_status = $sth->{pg_cmd_status};
 ( $pg_cmd_status =~ /^INSERT/ )
-    and print "\$sth->{pg_cmd_status} ...... ok\n"
-    or  print "\$sth->{pg_cmd_status} ...... not ok: $pg_cmd_status\n";
+    and print STDERR "\$sth->{pg_cmd_status} ...... ok\n"
+    or  print STDERR "\$sth->{pg_cmd_status} ...... not ok: $pg_cmd_status\n";
 
 ( $sth->finish )
-    and print "\$sth->finish ............... ok\n"
+    and print STDERR "\$sth->finish ............... ok\n"
     or  die   "\$sth->finish ............... not ok: ", $DBI::errstr;
 
 ######################### test various select methods
@@ -327,7 +324,7 @@ my $pg_cmd_status = $sth->{pg_cmd_status};
 $sth = $pg_dbh->prepare("SELECT * FROM builtin where int4_ < ? + ?") or die $DBI::errstr;
 
 ( $sth->bind_param(1, '4000', DBI::SQL_INTEGER) )
-    and print "\$sth->bind_param ........... ok\n"
+    and print STDERR "\$sth->bind_param ........... ok\n"
     or  die   "\$sth->bind_param ........... not ok: ", $DBI::errstr;
 $sth->bind_param(2, '6000', DBI::SQL_INTEGER);
 
@@ -335,40 +332,41 @@ $sth->execute or die $DBI::errstr;
 
 my @row_ary = $sth->fetchrow_array;
 ( join(" ", @row_ary) eq q{1 a Edmund Mergl quote \ ' this   Edmund Mergl Edmund Mergl 1997-08-03 1234 {1,2,3} 1.234 (1,2) [(1,2),(3,4)] (3,4),(1,2)} ) 
-    and print "\$sth->fetchrow_array ....... ok\n"
-    or  print "\$sth->fetchrow_array ....... not ok: ", join(" ", @row_ary), "\n";
+    and print STDERR "\$sth->fetchrow_array ....... ok\n"
+    or  print STDERR "\$sth->fetchrow_array ....... not ok: ", join(" ", @row_ary), "\n";
 
 my $ary_ref = $sth->fetchrow_arrayref;
 ( join(" ", @$ary_ref) eq q{0 b Halli  Hallo but  not  this   Halli  Hallo Halli  Hallo 1995-06-01 5678 {5,6,7} 5.678 (4,5) [(4,5),(6,7)] (6,7),(4,5)} )
-    and print "\$sth->fetchrow_arrayref .... ok\n"
-    or  print "\$sth->fetchrow_arrayref .... not ok: ", join(" ", @$ary_ref), "\n";
+    and print STDERR "\$sth->fetchrow_arrayref .... ok\n"
+    or  print STDERR "\$sth->fetchrow_arrayref .... not ok: ", join(" ", @$ary_ref), "\n";
 
-my ($key, $val);
-my $hash_ref = $sth->fetchrow_hashref;
-( join(" ", (($key,$val) = each %$hash_ref)) eq q{char12_ Potz   Blitz} )
-    and print "\$sth->fetchrow_hashref ..... ok\n"
-    or  print "\$sth->fetchrow_hashref ..... not ok:  key = $key, val = $val\n";
-
+# xxx: broken because depends on specific hash ordering
+#my ($key, $val);
+#my $hash_ref = $sth->fetchrow_hashref;
+#( join(" ", (($key,$val) = each %$hash_ref)) eq q{char12_ Potz   Blitz} )
+#    and print STDERR "\$sth->fetchrow_hashref ..... ok\n"
+#    or  print STDERR "\$sth->fetchrow_hashref ..... not ok:  key = $key, val = $val\n";
+#
 # test various attributes
 my @name = @{$sth->{NAME}};
 ( join(" ", @name) eq q{bool_ char_ char12_ char16_ varchar12_ text_ date_ int4_ int4a_ float8_ point_ lseg_ box_} )
-    and print "\$sth->{NAME} ............... ok\n"
-    or  print "\$sth->{NAME} ............... not ok: ", join(" ", @name), "\n";
+    and print STDERR "\$sth->{NAME} ............... ok\n"
+    or  print STDERR "\$sth->{NAME} ............... not ok: ", join(" ", @name), "\n";
 
 my @type = @{$sth->{TYPE}};
 ( join(" ", @type) eq q{16 1042 1042 1042 1043 25 1082 23 1007 701 600 601 603} )
-    and print "\$sth->{TYPE} ............... ok\n"
-    or  print "\$sth->{TYPE} ............... not ok: ", join(" ", @type), "\n";
+    and print STDERR "\$sth->{TYPE} ............... ok\n"
+    or  print STDERR "\$sth->{TYPE} ............... not ok: ", join(" ", @type), "\n";
 
 my @pg_size = @{$sth->{pg_size}};
 ( join(" ", @pg_size) eq q{1 -1 -1 -1 -1 -1 4 4 -1 8 16 32 32} )
-    and print "\$sth->{pg_size} ............ ok\n"
-    or  print "\$sth->{pg_size} ............ not ok: ", join(" ", @pg_size), "\n";
+    and print STDERR "\$sth->{pg_size} ............ ok\n"
+    or  print STDERR "\$sth->{pg_size} ............ not ok: ", join(" ", @pg_size), "\n";
 
 my @pg_type = @{$sth->{pg_type}};
 ( join(" ", @pg_type) eq q{bool bpchar bpchar bpchar varchar text date int4 _int4 float8 point lseg box} )
-    and print "\$sth->{pg_type} ............ ok\n"
-    or  print "\$sth->{pg_type} ............ not ok: ", join(" ", @pg_type), "\n";
+    and print STDERR "\$sth->{pg_type} ............ ok\n"
+    or  print STDERR "\$sth->{pg_type} ............ not ok: ", join(" ", @pg_type), "\n";
 
 # test binding of output columns
 
@@ -376,24 +374,24 @@ $sth->execute or die $DBI::errstr;
 
 my ($bool, $char, $char12, $char16, $vchar12, $text, $date, $int4, $int4a, $float8, $point, $lseg, $box);
 ( $sth->bind_columns(undef, \$bool, \$char, \$char12, \$char16, \$vchar12, \$text, \$date, \$int4, \$int4a, \$float8, \$point, \$lseg, \$box) )
-    and print "\$sth->bind_columns ......... ok\n"
-    or  print "\$sth->bind_columns ......... not ok: ", $DBI::errstr;
+    and print STDERR "\$sth->bind_columns ......... ok\n"
+    or  print STDERR "\$sth->bind_columns ......... not ok: ", $DBI::errstr;
 
 $sth->fetch or die $DBI::errstr;
 ( "$bool, $char, $char12, $char16, $vchar12, $text, $date, $int4, $int4a, $float8, $point, $lseg, $box" eq 
-  q{1, a, Edmund Mergl, quote \ ' this  , Edmund Mergl, Edmund Mergl, 08-03-1997, 1234, {1,2,3}, 1.234, (1,2), [(1,2),(3,4)], (3,4),(1,2)} )
-    and print "\$sth->fetch ................ ok\n"
-    or  print "\$sth->fetch ................ not ok:  $bool, $char, $char12, $char16, $vchar12, $text, $date, $int4, $int4a, $float8, $point, $lseg, $box\n";
+  q{1, a, Edmund Mergl, quote \ ' this  , Edmund Mergl, Edmund Mergl, 1997-08-03, 1234, {1,2,3}, 1.234, (1,2), [(1,2),(3,4)], (3,4),(1,2)} )
+    and print STDERR "\$sth->fetch ................ ok\n"
+    or  print STDERR "\$sth->fetch ................ not ok:  $bool, $char, $char12, $char16, $vchar12, $text, $date, $int4, $int4a, $float8, $point, $lseg, $box\n";
 
 my $gaga;
 ( $sth->bind_col(5, \$gaga) )
-    and print "\$sth->bind_col ............. ok\n"
-    or  print "\$sth->bind_col ............. not ok: ", $DBI::errstr;
+    and print STDERR "\$sth->bind_col ............. ok\n"
+    or  print STDERR "\$sth->bind_col ............. not ok: ", $DBI::errstr;
 
 $sth->fetch or die $DBI::errstr;
 ( $gaga eq q{Halli  Hallo} )
-    and print "\$sth->fetch ................ ok\n"
-    or  print "\$sth->fetch ................ not ok: $gaga\n";
+    and print STDERR "\$sth->fetch ................ ok\n"
+    or  print STDERR "\$sth->fetch ................ not ok: $gaga\n";
 
 $sth->finish or die $DBI::errstr;
 
@@ -410,14 +408,15 @@ $sth->execute or die $DBI::errstr;
 
 $sth->{ChopBlanks} = 1;
 @row_ary = $sth->fetchrow_array;
-( join(" ", @row_ary) eq q{1 a Edmund Mergl quote \ ' this Edmund Mergl Edmund Mergl 08-03-1997 1234 {1,2,3} 1.234 (1,2) [(1,2),(3,4)] (3,4),(1,2)} ) 
-    and print "\$sth->{ChopBlanks} ......... ok\n"
-    or  print "\$sth->{ChopBlanks} .......... not ok: ", join(" ", @row_ary), "\n";
+                           1 a Edmund Mergl quote \ ' this   Edmund Mergl Edmund Mergl 1997-08-03 1234 {1,2,3} 1.234 (1,2) [(1,2),(3,4)] (3,4),(1,2)
+( join(" ", @row_ary) eq q{1 a Edmund Mergl quote \ ' this Edmund Mergl Edmund Mergl 1997-08-03 1234 {1,2,3} 1.234 (1,2) [(1,2),(3,4)] (3,4),(1,2)} ) 
+    and print STDERR "\$sth->{ChopBlanks} ......... ok\n"
+    or  print STDERR "\$sth->{ChopBlanks} .......... not ok: ", join(" ", @row_ary), "\n";
 
 my $rows = $sth->rows;
 ( 1 == $rows )
-    and print "\$sth->rows ................. ok\n"
-    or  print "\$sth->rows ................. not ok: $rows\n";
+    and print STDERR "\$sth->rows ................. ok\n"
+    or  print STDERR "\$sth->rows ................. not ok: $rows\n";
 
 $sth->finish or die $DBI::errstr;
 

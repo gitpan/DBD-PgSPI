@@ -52,7 +52,7 @@ _login(dbh)
     } else {
       dbd_db_login(dbh, imp_dbh, "", "", "");
     }
-    ST(0) = &sv_yes;
+    ST(0) = &PL_sv_yes;
 
 
 void
@@ -60,7 +60,7 @@ commit(dbh)
     SV *	dbh
     CODE:
     warn("commit ineffective in PgSPI");
-    ST(0) = &sv_yes;
+    ST(0) = &PL_sv_yes;
     
 
 void
@@ -68,7 +68,7 @@ rollback(dbh)
     SV *	dbh
     CODE:
     warn("rollback ineffective in PgSPI");
-    ST(0) = &sv_yes;
+    ST(0) = &PL_sv_yes;
 
 
 void
@@ -86,13 +86,13 @@ disconnect(dbh)
     }
     /* Check for disconnect() being called whilst refs to cursors	*/
     /* still exists. This possibly needs some more thought.		*/
-    if (DBIc_ACTIVE_KIDS(imp_dbh) && DBIc_WARN(imp_dbh) && !dirty) {
+    if (DBIc_ACTIVE_KIDS(imp_dbh) && DBIc_WARN(imp_dbh) && !PL_dirty) {
         char *plural = (DBIc_ACTIVE_KIDS(imp_dbh)==1) ? "" : "s";
         warn("disconnect(%s) invalidates %d active statement%s. %s",
-            SvPV(dbh,na), (int)DBIc_ACTIVE_KIDS(imp_dbh), plural,
+            SvPV(dbh,PL_na), (int)DBIc_ACTIVE_KIDS(imp_dbh), plural,
             "Either destroy statement handles or call finish on them before disconnecting.");
     }
-    ST(0) = dbd_db_disconnect(dbh, imp_dbh) ? &sv_yes : &sv_no;
+    ST(0) = dbd_db_disconnect(dbh, imp_dbh) ? &PL_sv_yes : &PL_sv_no;
 
 
 void
@@ -102,10 +102,10 @@ STORE(dbh, keysv, valuesv)
     SV *	valuesv
     CODE:
     D_imp_dbh(dbh);
-    ST(0) = &sv_yes;
+    ST(0) = &PL_sv_yes;
     if (!dbd_db_STORE_attrib(dbh, imp_dbh, keysv, valuesv)) {
         if (!DBIS->set_attr(dbh, keysv, valuesv)) {
-            ST(0) = &sv_no;
+            ST(0) = &PL_sv_no;
         }
     }
 
@@ -128,10 +128,10 @@ DESTROY(dbh)
     SV *	dbh
     PPCODE:
     D_imp_dbh(dbh);
-    ST(0) = &sv_yes;
+    ST(0) = &PL_sv_yes;
     if (!DBIc_IMPSET(imp_dbh)) {	/* was never fully set up	*/
-        if (DBIc_WARN(imp_dbh) && !dirty && dbis->debug >= 2) {
-            warn("Database handle %s DESTROY ignored - never set up", SvPV(dbh,na));
+        if (DBIc_WARN(imp_dbh) && !PL_dirty && dbis->debug >= 2) {
+            warn("Database handle %s DESTROY ignored - never set up", SvPV(dbh,PL_na));
         }
     }
     else {
@@ -144,7 +144,7 @@ DESTROY(dbh)
             DBIc_ACTIVE_off(imp_dbh);
         }
         if (DBIc_ACTIVE(imp_dbh)) {
-            if (DBIc_WARN(imp_dbh) && (!dirty || dbis->debug >= 3)) {
+            if (DBIc_WARN(imp_dbh) && (!PL_dirty || dbis->debug >= 3)) {
                 warn("Database handle destroyed without explicit disconnect");
             }
             if (!DBIc_has(imp_dbh,DBIcf_AutoCommit)) {
@@ -180,9 +180,9 @@ _prepare(sth, statement, attribs=Nullsv)
         !strncasecmp(statement, "abort",    5) ||
         !strncasecmp(statement, "rollback", 8) ) {
         warn("please use DBI functions for transaction handling");
-        ST(0) = &sv_no;
+        ST(0) = &PL_sv_no;
     } else {
-        ST(0) = dbd_st_prepare(sth, imp_sth, statement, attribs) ? &sv_yes : &sv_no;
+        ST(0) = dbd_st_prepare(sth, imp_sth, statement, attribs) ? &PL_sv_yes : &PL_sv_no;
     }
     }
 
@@ -217,7 +217,7 @@ bind_param(sth, param, value, attribs=Nullsv)
             DBD_ATTRIB_GET_IV(attribs, "TYPE", 4, svp, sql_type);
         }
     }
-    ST(0) = dbd_bind_ph(sth, imp_sth, param, value, sql_type, attribs, FALSE, 0) ? &sv_yes : &sv_no;
+    ST(0) = dbd_bind_ph(sth, imp_sth, param, value, sql_type, attribs, FALSE, 0) ? &PL_sv_yes : &PL_sv_no;
     }
 
 void
@@ -264,7 +264,7 @@ fetchrow_arrayref(sth)
     CODE:
     D_imp_sth(sth);
     AV *av = dbd_st_fetch(sth, imp_sth);
-    ST(0) = (av) ? sv_2mortal(newRV_inc((SV *)av)) : &sv_undef;
+    ST(0) = (av) ? sv_2mortal(newRV_inc((SV *)av)) : &PL_sv_undef;
 
 
 void
@@ -302,7 +302,7 @@ finish(sth)
 	/* No active statement to finish	*/
         XSRETURN_YES;
     }
-    ST(0) = dbd_st_finish(sth, imp_sth) ? &sv_yes : &sv_no;
+    ST(0) = dbd_st_finish(sth, imp_sth) ? &PL_sv_yes : &PL_sv_no;
 
 
 void
@@ -312,10 +312,10 @@ STORE(sth, keysv, valuesv)
     SV *	valuesv
     CODE:
     D_imp_sth(sth);
-    ST(0) = &sv_yes;
+    ST(0) = &PL_sv_yes;
     if (!dbd_st_STORE_attrib(sth, imp_sth, keysv, valuesv)) {
         if (!DBIS->set_attr(sth, keysv, valuesv)) {
-            ST(0) = &sv_no;
+            ST(0) = &PL_sv_no;
         }
     }
 
@@ -341,10 +341,10 @@ DESTROY(sth)
     SV *	sth
     PPCODE:
     D_imp_sth(sth);
-    ST(0) = &sv_yes;
+    ST(0) = &PL_sv_yes;
     if (!DBIc_IMPSET(imp_sth)) {	/* was never fully set up	*/
-        if (DBIc_WARN(imp_sth) && !dirty && dbis->debug >= 2) {
-            warn("Statement handle %s DESTROY ignored - never set up", SvPV(sth,na));
+        if (DBIc_WARN(imp_sth) && !PL_dirty && dbis->debug >= 2) {
+            warn("Statement handle %s DESTROY ignored - never set up", SvPV(sth,PL_na));
         }
     }
     else {

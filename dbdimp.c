@@ -43,10 +43,10 @@ dbd_discon_all (drh, imp_drh)
 {
     dTHR;
 
-    if (dbis->debug >= 1) { fprintf(DBILOGFP, "dbd_discon_all\n"); }
+    if (dbis->debug >= 1) { PerlIO_printf(DBILOGFP, "dbd_discon_all\n"); }
 
     /* The disconnect_all concept is flawed and needs more work */
-    if (!dirty && !SvTRUE(perl_get_sv("DBI::PERL_ENDING",0))) {
+    if (!PL_dirty && !SvTRUE(perl_get_sv("DBI::PERL_ENDING",0))) {
 	sv_setiv(DBIc_ERR(imp_drh), (IV)1);
 	sv_setpv(DBIc_ERRSTR(imp_drh),
 		(char*)"disconnect_all not implemented");
@@ -54,8 +54,8 @@ dbd_discon_all (drh, imp_drh)
 		DBIc_ERR(imp_drh), DBIc_ERRSTR(imp_drh));
 	return FALSE;
     }
-    if (perl_destruct_level) {
-        perl_destruct_level = 0;
+    if (PL_perl_destruct_level) {
+        PL_perl_destruct_level = 0;
     }
     return FALSE;
 }
@@ -74,7 +74,7 @@ pg_error (h, error_num, error_msg)
     sv_setiv(DBIc_ERR(imp_xxh), (IV)error_num);		/* set err early */
     sv_setpv(DBIc_ERRSTR(imp_xxh), (char*)error_msg);
     DBIh_EVENT2(h, ERROR_event, DBIc_ERR(imp_xxh), DBIc_ERRSTR(imp_xxh));
-    if (1 || dbis->debug >= 2) { elog(ERROR, "DBD::PgSPI %s error %d recorded: %s\n", error_msg, error_num, SvPV(DBIc_ERRSTR(imp_xxh),na)); } 
+    if (1 || dbis->debug >= 2) { elog(ERROR, "DBD::PgSPI %s error %d recorded: %s\n", error_msg, error_num, SvPV(DBIc_ERRSTR(imp_xxh),PL_na)); } 
 }
 
 /* XXX: do we really care? shouldn't we able to bind everything, and
@@ -124,7 +124,7 @@ dbd_db_login (dbh, imp_dbh, dummy1, dummy2, dummy3)
     dTHR;
     D_imp_drh_from_dbh;
 
-    if (dbis->debug >= 1) { fprintf(DBILOGFP, "pg_db_login\n"); }
+    if (dbis->debug >= 1) { PerlIO_printf(DBILOGFP, "pg_db_login\n"); }
 
     /* our life is easy. we actually never call SPI_connect/finish, 
        since its the responsibility of plperl_func_handler */
@@ -150,7 +150,7 @@ dbd_db_disconnect (dbh, imp_dbh)
     /* We assume that disconnect will always work	*/
     DBIc_ACTIVE_off(imp_dbh);
 
-    if (dbis->debug >= 1) { fprintf(DBILOGFP, "pg_db_disconnect\n"); }
+    if (dbis->debug >= 1) { PerlIO_printf(DBILOGFP, "pg_db_disconnect\n"); }
 
     /* our life is easy. we actually never call SPI_connect/finish, 
        since its the responsibility of plperl_func_handler */
@@ -167,7 +167,7 @@ dbd_db_destroy (dbh, imp_dbh)
     SV *dbh;
     imp_dbh_t *imp_dbh;
 {
-    if (dbis->debug >= 1) { fprintf(DBILOGFP, "dbd_db_destroy\n"); }
+    if (dbis->debug >= 1) { PerlIO_printf(DBILOGFP, "dbd_db_destroy\n"); }
 
     if (DBIc_ACTIVE(imp_dbh)) {
         dbd_db_disconnect(dbh, imp_dbh);
@@ -189,7 +189,7 @@ dbd_db_STORE_attrib (dbh, imp_dbh, keysv, valuesv)
     char *key = SvPV(keysv,kl);
     int newval = SvTRUE(valuesv);
 
-    if (dbis->debug >= 1) { fprintf(DBILOGFP, "dbd_db_STORE\n"); }
+    if (dbis->debug >= 1) { PerlIO_printf(DBILOGFP, "dbd_db_STORE\n"); }
 
     if (kl==10 && strEQ(key, "AutoCommit") ) {
       if ( newval == FALSE ) {
@@ -215,7 +215,7 @@ dbd_db_FETCH_attrib (dbh, imp_dbh, keysv)
     char *key = SvPV(keysv,kl);
     SV *retsv = Nullsv;
 
-    if (dbis->debug >= 1) { fprintf(DBILOGFP, "dbd_db_FETCH\n"); }
+    if (dbis->debug >= 1) { PerlIO_printf(DBILOGFP, "dbd_db_FETCH\n"); }
 
     if (kl==10 && strEQ(key, "AutoCommit") ) {
         retsv = boolSV(DBIc_has(imp_dbh, DBIcf_AutoCommit));
@@ -226,7 +226,7 @@ dbd_db_FETCH_attrib (dbh, imp_dbh, keysv)
     if (!retsv) {
 	return Nullsv;
     }
-    if (retsv == &sv_yes || retsv == &sv_no) {
+    if (retsv == &PL_sv_yes || retsv == &PL_sv_no) {
         return retsv; /* no need to mortalize yes or no */
     }
     return sv_2mortal(retsv);
@@ -245,7 +245,7 @@ dbd_st_prepare (sth, imp_sth, statement, attribs)
     char *statement;
     SV *attribs;
 {
-    if (dbis->debug >= 1) { fprintf(DBILOGFP, "dbd_st_prepare: statement = >%s<\n", statement); }
+    if (dbis->debug >= 1) { PerlIO_printf(DBILOGFP, "dbd_st_prepare: statement = >%s<\n", statement); }
 
     /* scan statement for '?', ':1' and/or ':foo' style placeholders */
     dbd_preparse(imp_sth, statement, attribs);
@@ -283,7 +283,7 @@ dbd_preparse (imp_sth, statement, attribs)
   
     void *res;
 
-    if (dbis->debug >= 1) { fprintf(DBILOGFP, "dbd_st_preparse: statement = >%s<\n", statement); }
+    if (dbis->debug >= 1) { PerlIO_printf(DBILOGFP, "dbd_st_preparse: statement = >%s<\n", statement); }
 
     /* allocate room for copy of statement with spare capacity	*/
     /* for editing '?' or ':1' into ':p1'.			*/
@@ -386,7 +386,7 @@ dbd_preparse (imp_sth, statement, attribs)
         if (imp_sth->all_params_hv == NULL) {
             imp_sth->all_params_hv = newHV();
         }
-        phs_tpl.sv = &sv_undef;
+        phs_tpl.sv = &PL_sv_undef;
         phs_sv = newSVpv((char*)&phs_tpl, sizeof(phs_tpl)+namelen+1);
         hv_store(imp_sth->all_params_hv, start, namelen, phs_sv, 0);
         strcpy( ((phs_t*)(void*)SvPVX(phs_sv))->name, start);
@@ -394,7 +394,7 @@ dbd_preparse (imp_sth, statement, attribs)
     *dest = '\0';
     if (imp_sth->all_params_hv) {
         DBIc_NUM_PARAMS(imp_sth) = (int)HvKEYS(imp_sth->all_params_hv);
-        if (dbis->debug >= 2) { fprintf(DBILOGFP, "    dbd_preparse scanned %d distinct placeholders\n", (int)DBIc_NUM_PARAMS(imp_sth)); }
+        if (dbis->debug >= 2) { PerlIO_printf(DBILOGFP, "    dbd_preparse scanned %d distinct placeholders\n", (int)DBIc_NUM_PARAMS(imp_sth)); }
 /*	argtypes = malloc(sizeof(Oid *) * (expr->nparams + 1)); */
 
     } else {
@@ -446,22 +446,22 @@ dbd_rebind_ph (sth, imp_sth, phs)
 {
     STRLEN value_len;
 
-    if (dbis->debug >= 1) { fprintf(DBILOGFP, "dbd_st_rebind\n"); }
+    if (dbis->debug >= 1) { PerlIO_printf(DBILOGFP, "dbd_st_rebind\n"); }
 
     /* convert to a string ASAP */
     if (!SvPOK(phs->sv) && SvOK(phs->sv)) {
-	sv_2pv(phs->sv, &na);
+	sv_2pv(phs->sv, &PL_na);
     }
 
     if (dbis->debug >= 2) {
 	char *val = neatsvpv(phs->sv,0);
- 	fprintf(DBILOGFP, "       bind %s <== %.1000s (", phs->name, val);
+ 	PerlIO_printf(DBILOGFP, "       bind %s <== %.1000s (", phs->name, val);
  	if (SvOK(phs->sv)) {
- 	     fprintf(DBILOGFP, "size %ld/%ld/%ld, ", (long)SvCUR(phs->sv),(long)SvLEN(phs->sv),phs->maxlen);
+ 	     PerlIO_printf(DBILOGFP, "size %ld/%ld/%ld, ", (long)SvCUR(phs->sv),(long)SvLEN(phs->sv),phs->maxlen);
 	} else {
-            fprintf(DBILOGFP, "NULL, ");
+            PerlIO_printf(DBILOGFP, "NULL, ");
         }
- 	fprintf(DBILOGFP, "ptype %d, otype %d%s)\n", (int)SvTYPE(phs->sv), phs->ftype);
+ 	PerlIO_printf(DBILOGFP, "ptype %d, otype %d%s)\n", (int)SvTYPE(phs->sv), phs->ftype);
     }
 
     /* At the moment we always do sv_setsv() and rebind.        */
@@ -494,7 +494,7 @@ dbd_rebind_ph (sth, imp_sth, phs)
     imp_sth->all_params_len += phs->alen;
 
     if (dbis->debug >= 3) {
-	fprintf(DBILOGFP, "       bind %s <== '%.*s' (size %ld/%ld, otype %d, indp %d)\n",
+	PerlIO_printf(DBILOGFP, "       bind %s <== '%.*s' (size %ld/%ld, otype %d, indp %d)\n",
  	    phs->name,
 	    (int)(phs->alen>SvIV(DBIS->neatsvpvlen) ? SvIV(DBIS->neatsvpvlen) : phs->alen),
 	    (phs->progv) ? phs->progv : "",
@@ -522,7 +522,7 @@ dbd_bind_ph (sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, max
     char namebuf[30];
     phs_t *phs;
 
-    if (dbis->debug >= 1) { fprintf(DBILOGFP, "dbd_bind_ph\n"); }
+    if (dbis->debug >= 1) { PerlIO_printf(DBILOGFP, "dbd_bind_ph\n"); }
 
     /* check if placeholder was passed as a number        */
 
@@ -551,11 +551,11 @@ dbd_bind_ph (sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, max
     }
 
    if (dbis->debug >= 2) {
-        fprintf(DBILOGFP, "         bind %s <== %s (type %ld", name, neatsvpv(newvalue,0), (long)sql_type);
+        PerlIO_printf(DBILOGFP, "         bind %s <== %s (type %ld", name, neatsvpv(newvalue,0), (long)sql_type);
         if (attribs) {
-            fprintf(DBILOGFP, ", attribs: %s", neatsvpv(attribs,0));
+            PerlIO_printf(DBILOGFP, ", attribs: %s", neatsvpv(attribs,0));
         }
-        fprintf(DBILOGFP, ")\n");
+        PerlIO_printf(DBILOGFP, ")\n");
     }
 
     phs_svp = hv_fetch(imp_sth->all_params_hv, name, name_len, 0);
@@ -564,7 +564,7 @@ dbd_bind_ph (sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, max
     }
     phs = (phs_t*)(void*)SvPVX(*phs_svp);	/* placeholder struct	*/
 
-    if (phs->sv == &sv_undef) { /* first bind for this placeholder	*/
+    if (phs->sv == &PL_sv_undef) { /* first bind for this placeholder	*/
         phs->ftype    = 1043;		 /* our default type VARCHAR	*/
 
         if (attribs) {	/* only look for pg_type on first bind of var	*/
@@ -593,7 +593,7 @@ dbd_bind_ph (sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, max
 
     phs->maxlen = maxlen;		/* 0 if not inout		*/
 
-    if (phs->sv == &sv_undef) {     /* (first time bind) */
+    if (phs->sv == &PL_sv_undef) {     /* (first time bind) */
         phs->sv = newSV(0);
     }
     sv_setsv(phs->sv, newvalue);
@@ -627,13 +627,13 @@ dbd_st_execute (sth, imp_sth)   /* <= -2:error, >=0:ok row count, (-1=unknown co
     phs_t *phs;
     SV **svp;
 
-    if (dbis->debug >= 1) { fprintf(DBILOGFP, "dbd_st_execute\n"); }
+    if (dbis->debug >= 1) { PerlIO_printf(DBILOGFP, "dbd_st_execute\n"); }
 
     /*
     here we get the statement from the statement handle where
     it has been stored when creating a blank sth during prepare
     svp = hv_fetch((HV *)SvRV(sth), "Statement", 9, FALSE);
-    statement = SvPV(*svp, na);
+    statement = SvPV(*svp, PL_na);
     */
 
     statement = imp_sth->statement;
@@ -752,11 +752,11 @@ dbd_st_execute (sth, imp_sth)   /* <= -2:error, >=0:ok row count, (-1=unknown co
         *dest = '\0';
     }
 
-    if (dbis->debug >= 2) { fprintf(DBILOGFP, "dbd_st_execute: statement = >%s<\n", statement); }
+    if (dbis->debug >= 2) { PerlIO_printf(DBILOGFP, "dbd_st_execute: statement = >%s<\n", statement); }
 
     spi_ret = SPI_exec(statement, 0);
 
-    if (dbis->debug >= 2) { fprintf(DBILOGFP, "(retcode %d)\n",spi_ret); }
+    if (dbis->debug >= 2) { PerlIO_printf(DBILOGFP, "(retcode %d)\n",spi_ret); }
 
     /* free statement string in case of input parameters */
     if ((int)DBIc_NUM_PARAMS(imp_sth) > 0) {
@@ -776,7 +776,7 @@ dbd_st_execute (sth, imp_sth)   /* <= -2:error, >=0:ok row count, (-1=unknown co
       case SPI_OK_DELETE:
       case SPI_OK_UPDATE:
         ret = SPI_processed;
-        if (dbis->debug >= 2) { fprintf(DBILOGFP, "(UPDATE OK,got %d tuples)\n",ret); }
+        if (dbis->debug >= 2) { PerlIO_printf(DBILOGFP, "(UPDATE OK,got %d tuples)\n",ret); }
         break;
       case SPI_OK_SELECT:
         ret = SPI_processed;
@@ -791,7 +791,7 @@ dbd_st_execute (sth, imp_sth)   /* <= -2:error, >=0:ok row count, (-1=unknown co
         }
         DBIc_NUM_FIELDS(imp_sth) = num_fields;
         DBIc_ACTIVE_on(imp_sth);
-        if (dbis->debug >= 2) { fprintf(DBILOGFP, "(SELECT OK,got %d tuples, %d fields wide)\n",ret, num_fields); }
+        if (dbis->debug >= 2) { PerlIO_printf(DBILOGFP, "(SELECT OK,got %d tuples, %d fields wide)\n",ret, num_fields); }
         break;
       case SPI_ERROR_ARGUMENT:
       case SPI_ERROR_UNCONNECTED:
@@ -863,14 +863,14 @@ dbd_st_fetch (sth, imp_sth)
     AV *av;
     SV *sv;
     Oid typoutput;
-    Oid typelem;
+    Oid typioparam;
     char * attname;
     Datum attr;
     char * val;
     int len;
     bool isnull;
 
-    if (dbis->debug >= 1) { fprintf(DBILOGFP, "dbd_st_fetch\n"); }
+    if (dbis->debug >= 1) { PerlIO_printf(DBILOGFP, "dbd_st_fetch\n"); }
 
     /* Check that execute() was executed sucessfully */
     if ( !DBIc_ACTIVE(imp_sth) ) {
@@ -899,7 +899,7 @@ dbd_st_fetch (sth, imp_sth)
 
         sv  = AvARRAY(av)[i];
         if (isnull) { 
-            sv_setsv(sv, &sv_undef);
+            sv_setsv(sv, &PL_sv_undef);
         } else  {
 /* we have the value, now lets extract it correctly. We need to be aware 
    of boolean types to convert them to 0/1, but anything else we can get 
@@ -909,7 +909,8 @@ dbd_st_fetch (sth, imp_sth)
                 elog(ERROR, "plperl: Cache lookup for attribute '%s' type %u failed", attname, tupdesc->attrs[i]->atttypid);
             }
             typoutput = (Oid) (((Form_pg_type) GETSTRUCT(typeTup))->typoutput);
-            typelem = (Oid) (((Form_pg_type) GETSTRUCT(typeTup))->typelem);
+            typioparam = getTypeIOParam(typeTup);
+
             ReleaseSysCache(typeTup);
 
             if (OidIsValid(typoutput)) {
@@ -930,28 +931,31 @@ dbd_st_fetch (sth, imp_sth)
 	   	  sv_setnv(sv, DatumGetInt64(attr) );
                   break;
 */
-/*                case CHAROID: */
-/*                case TEXTOID: */
-                case 11111111: 
-/*                case NAMEOID: */
-/*                case BPCHAROID: */
-/* we only chop blanks on strings */
-		  val = DatumGetPointer( attr ); 
-                  len = VARSIZE(attr) - VARHDRSZ;
-                  if ( DBIc_has(imp_sth,DBIcf_ChopBlanks) ) {
-                      char *str = val;
-                      while((len > 0) && (str[len-1] == ' ')) {
-                          len--;
-                      }
-                  }
-                  sv_setpvn(sv, val, len);
- 		  break;
   		default:
                   val = DatumGetCString(OidFunctionCall3(typoutput, attr,
-                          ObjectIdGetDatum(typelem), 
-                          Int32GetDatum(tupdesc->attrs[i]->attlen))
-                        );
-                  sv_setpv(sv, val);
+                          ObjectIdGetDatum(typioparam),
+                          Int32GetDatum(tupdesc->attrs[i]->atttypmod)
+                        ));
+ 		  switch (attdesc->atttypid) {
+/* chopblanks won't quite work 
+                    case CHAROID:
+                    case TEXTOID:
+                    case NAMEOID:
+                    case BPCHAROID:
+                      if ( DBIc_has(imp_sth,DBIcf_ChopBlanks) ) {
+                        len = strlen(val);
+                        char *str = val;
+                        while((len > 0) && (str[len-1] == ' ')) {
+                            len--;
+                        }
+                        sv_setpvn(sv, val, len);
+                      } else {
+                        sv_setpv(sv, val);
+                      }
+*/
+                    default:
+                      sv_setpv(sv, val);
+ 		  }
                   pfree(val);
                   break;
               }
@@ -970,7 +974,7 @@ dbd_st_rows (sth, imp_sth)
     SV *sth;
     imp_sth_t *imp_sth;
 {
-    if (dbis->debug >= 1) { fprintf(DBILOGFP, "dbd_st_rows\n"); }
+    if (dbis->debug >= 1) { PerlIO_printf(DBILOGFP, "dbd_st_rows\n"); }
 
     return imp_sth->rows;
 }
@@ -983,7 +987,7 @@ dbd_st_finish (sth, imp_sth)
 {
     dTHR;
 
-    if (dbis->debug >= 1) { fprintf(DBILOGFP, "dbd_st_finish\n"); }
+    if (dbis->debug >= 1) { PerlIO_printf(DBILOGFP, "dbd_st_finish\n"); }
 
 /* XXX: close portal when we use portals
     if (DBIc_ACTIVE(imp_sth)) {
@@ -1000,7 +1004,7 @@ dbd_st_destroy (sth, imp_sth)
     SV *sth;
     imp_sth_t *imp_sth;
 {
-    if (dbis->debug >= 1) { fprintf(DBILOGFP, "dbd_st_destroy\n"); }
+    if (dbis->debug >= 1) { PerlIO_printf(DBILOGFP, "dbd_st_destroy\n"); }
 
     /* Free off contents of imp_sth */
 
@@ -1015,7 +1019,7 @@ dbd_st_destroy (sth, imp_sth)
         I32 retlen;
         hv_iterinit(hv);
         while( (sv = hv_iternextsv(hv, &key, &retlen)) != NULL ) {
-            if (sv != &sv_undef) {
+            if (sv != &PL_sv_undef) {
                 phs_t *phs_tpl = (phs_t*)(void*)SvPVX(sv);
                 sv_free(phs_tpl->sv);
             }
@@ -1034,7 +1038,7 @@ dbd_st_STORE_attrib (sth, imp_sth, keysv, valuesv)
     SV *keysv;
     SV *valuesv;
 {
-    if (dbis->debug >= 1) { fprintf(DBILOGFP, "dbd_st_STORE\n"); }
+    if (dbis->debug >= 1) { PerlIO_printf(DBILOGFP, "dbd_st_STORE\n"); }
 
     return FALSE;
 }
@@ -1055,7 +1059,7 @@ dbd_st_FETCH_attrib (sth, imp_sth, keysv)
     int i;
     SV *retsv = Nullsv;
 
-    if (dbis->debug >= 1) { fprintf(DBILOGFP, "dbd_st_FETCH\n"); }
+    if (dbis->debug >= 1) { PerlIO_printf(DBILOGFP, "dbd_st_FETCH\n"); }
 
 /* XY: result check was here */
 
@@ -1080,13 +1084,13 @@ dbd_st_FETCH_attrib (sth, imp_sth, keysv)
         AV *av = newAV();
         retsv = newRV(sv_2mortal((SV*)av));
 	while(--i >= 0) {
-            av_store(av, i, &sv_undef);
+            av_store(av, i, &PL_sv_undef);
         }
     } else if (kl==5 && strEQ(key, "SCALE")) {
         AV *av = newAV();
         retsv = newRV(sv_2mortal((SV*)av));
 	while(--i >= 0) {
-            av_store(av, i, &sv_undef);
+            av_store(av, i, &PL_sv_undef);
         }
     } else if (kl==8 && strEQ(key, "NULLABLE")) {
         AV *av = newAV();
@@ -1095,7 +1099,7 @@ dbd_st_FETCH_attrib (sth, imp_sth, keysv)
             av_store(av, i, newSViv(2));
         }
     } else if (kl==10 && strEQ(key, "CursorName")) {
-        retsv = &sv_undef;
+        retsv = &PL_sv_undef;
     } else if (kl==7 && strEQ(key, "pg_size")) {
         AV *av = newAV();
         retsv = newRV(sv_2mortal((SV*)av));

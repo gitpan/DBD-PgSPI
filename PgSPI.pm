@@ -8,7 +8,7 @@
 
 require 5.003;
 
-$DBD::PgSPI::VERSION = '0.01';
+$DBD::PgSPI::VERSION = '0.02';
 
 {
     package DBD::PgSPI;
@@ -105,26 +105,26 @@ $DBD::PgSPI::VERSION = '0.01';
 
 # punt these functions to Pg
     sub table_info {         # DBI spec: TABLE_CAT, TABLE_SCHEM, TABLE_NAME, TABLE_TYPE, REMARKS
-        my($dbh) = @_;
-	return DBD::Pg::db::table_info($dbh);
+        my(@args) = @_;
+	return DBD::Pg::db::table_info(@args);
     }
 
 
     sub tables {
-        my($dbh) = @_;
-	return DBD::Pg::db::tables($dbh);
+        my(@args) = @_;
+	return DBD::Pg::db::tables(@args);
     }
 
 
     sub table_attributes {
-        my ($dbh, $table) = @_;
-	return DBD::Pg::db::table_attributes($dbh, $table);
+        my(@args) = @_;
+	return DBD::Pg::db::table_attributes(@args);
     }
 
 
     sub type_info_all {
-        my ($dbh) = @_;
-	return DBD::Pg::db::type_info_all();
+        my(@args) = @_;
+	return DBD::Pg::db::type_info_all(@args);
     }
 
 
